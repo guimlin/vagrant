@@ -7,6 +7,13 @@ Vagrant.configure("2") do |config|
   config.vm.box = "ubuntu/xenial64"
   config.ssh.insert_key = false
 
+  config.vm.provision "shell", inline: "sudo apt update"
+  config.vm.provision "shell", inline: "sudo apt upgrade"
+  config.vm.provision "shell", inline: "grep controlserver /etc/hosts || sudo sed -i '$a192.168.50.230 controlserver' /etc/hosts"
+  config.vm.provision "shell", inline: "grep controlserver /etc/hosts || sudo sed -i '$a192.168.50.231 node1' /etc/hosts"
+  config.vm.provision "shell", inline: "grep controlserver /etc/hosts || sudo sed -i '$a192.168.50.232 node2' /etc/hosts"
+  
+
 
   config.vm.define "controlserver" do |control|
     control.vm.hostname = 'controlserver'
@@ -19,7 +26,12 @@ Vagrant.configure("2") do |config|
       v.name = "controlserver"
       v.memory = 5000
       v.cpus = 2
-    end    
+    end   
+=begin
+    control.vm.provision "ansible_local" do |ansible|
+      ansible.playbook = "playbook.yml"
+    end 
+=end
   end
   
   config.vm.define "node1" do |node1|
