@@ -1,0 +1,171 @@
+- name: ping the servers
+  hosts:
+    - all
+  #become: true
+  #become_user: vagrant
+  tasks:
+    - action: ping
+
+
+- hosts: masters
+  become: yes
+  tasks:
+    - name: install tftpd-hpa, dnsmasq, apache2
+      apt:
+        name: 
+          - tftpd-hpa
+          - apache2
+          - dnsmasq
+        state: present
+
+    - name: allow http and enable UFW
+      ufw:
+        state: enabled
+        rule: allow
+        port: '22,80,443'
+        proto: tcp
+
+    - name: allow http and enable UFW
+      ufw:
+        state: enabled
+        rule: allow
+        port: '67,68,69'
+        proto: udp
+
+
+    - name: create /etc/apache2/conf-available/tftp.conf
+      copy:
+        dest: "/etc/apache2/conf-available/tftp.conf"
+        content: |
+          <Directory /var/lib/tftpboot>
+                  Options +FollowSymLinks +Indexes
+                  Require all granted
+          </Directory>
+          Alias /tftp /var/lib/tftpboot
+
+
+    - name: enable a2enconf tftp
+      command: "a2enconf tftp"
+      notify:
+        - restart apache2
+
+    - name: Create /etc/dnsmasq.conf
+      copy:
+        dest: "/etc/dnsmasq.conf"
+        content: |
+          port=0
+
+          interface=enp0s8
+          bind-interfaces
+          domain=mypxe.local
+
+          dhcp-range=192.168.50.240,192.168.50.253,255.255.255.0,1h
+          dhcp-option=3,192.168.50.230
+          dhcp-option=6,8.8.8.8
+          server=8.8.4.4
+          dhcp-option=28,192.68.50.255
+          dhcp-option=42,0.0.0.0
+
+          dhcp-boot=pxelinux.0,pxeserver,192.168.50.230
+
+          #pxe-prompt="Press F8 for menu.", 2
+          #pxe-service=x86PC, "Install Ubuntu 16.04 from network server 192.168.50.230", pxelinux
+          #enable-tftp
+          #tftp-root=/var/lib/tftpboot
+      notify:
+        - restart dnsmasq
+
+    - name: Creating /var/lib/tftpboot and /var/lib/tftpboot/grub
+      file:
+        path: /var/lib/{{ item }}
+        state: directory
+      with_items:
+        - tftpboot  
+        - tftpboot/grub
+
+
+    - name: copy Ubuntu ISO file and grub image
+      become: true 
+      copy:
+        src: /vagrant/{{ item }}
+        dest: /var/lib/tftpboot/
+        owner: vagrant
+        group: vagrant        
+        mode: 0644
+      with_items:
+        - ubuntu-20.04.3-desktop-amd64.iso 
+        - pxelinux.0
+
+
+    - name: Mount ISO
+      mount:
+        src: /var/lib/tftpboot/ubuntu-20.04.3-desktop-amd64.iso
+        path: /mnt/
+        fstype: iso9660
+        #opts: ro
+        #modify_fstab: no
+        state: mounted
+
+    # - name: copy kernel and initramfs
+    #   copy: src=/mnt/casper/{{ item }} dest=/var/lib/tftpboot/
+    #   with_items:
+    #   - vmlinuz 
+    #   - initrd  
+
+    - name: copy kernel and initramfs
+      command: "{{ item }}"
+      with_items:
+       - sudo cp /mnt/casper/vmlinuz /var/lib/tftpboot/
+       - sudo cp /mnt/casper/initrd /var/lib/tftpboot/
+       - sudo umount /mnt
+
+    - name: config /var/lib/tftpboot/grub
+      copy:
+        dest: "/var/lib/tftpboot/grub/grub.cfg"
+        content: |
+          default=autoinstall
+          timeout=30
+          timeout_style=menu
+          menuentry "Focal Live Installer - automated" --id=autoinstall {
+              echo "Loading Kernel..."
+              # make sure to escape the ';' or surround argument in quotes
+              linux /vmlinuz ip=dhcp url=http://{{ pxe_default_server }}/tftp/{{ isofile }} autoinstall ds="nocloud-net;s=http://{{ pxe_default_server }}/tftp/" root=/dev/ram0 cloud-config-url=/dev/null
+              echo "Loading Ram Disk..."
+              initrd /initrd
+          }
+          menuentry "Focal Live Installer" --id=install {
+              echo "Loading Kernel..."
+              linux /vmlinuz ip=dhcp url=http://{{ pxe_default_server }}/tftp/{{ isofile }} root=/dev/ram0 cloud-config-url=/dev/null
+              echo "Loading Ram Disk..."
+              initrd /initrd
+          }
+      vars:
+        pxe_default_server: "192.168.50.230"
+        isofile: "ubuntu-20.04.3-desktop-amd64.iso"
+
+    # - name: copy netboot file
+    #   become: true 
+    #   copy:
+    #     src: /mnt/install/netboot/*
+    #     dest: /srv/tftp
+    #     owner: vagrant
+    #     group: vagrant        
+    #     mode: 0644
+
+  #   - name: copy ISO files to apache2
+  #     become: true 
+  #     copy:
+  #       src: /mnt/*
+  #       dest: /var/www/html/
+  #       owner: vagrant
+  #       group: vagrant        
+  #       mode: 0644
+
+
+  handlers:
+  - name: restart apache2
+    service: name=apache2 state=restarted
+
+  - name: restart dnsmasq
+    service: name=dnsmasq state=restarted
+
