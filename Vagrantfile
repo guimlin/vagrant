@@ -30,10 +30,15 @@ Vagrant.configure("2") do |config|
   config.ssh.insert_key = false
 
   config.vm.provision "shell", inline: <<-SHELL
-    route delete default
-    route add default gw "#{defaultroute}"
-    sudo apt update
-    sudo apt upgrade
+    sudo route delete default
+    sudo route add default gw "#{defaultroute}"
+
+    sudo cp /vagrant/insecure_private_key  ~/insecure_private_key
+    sudo chown vagrant:vagrant ~/insecure_private_key
+    sudo chmod 600 ~/insecure_private_key
+
+    sudo apt update --yes
+    sudo apt upgrade --yes
  SHELL
 
 
@@ -60,18 +65,14 @@ Vagrant.configure("2") do |config|
   end
 
   config.vm.define "#{ansible_server}" do |ansible_server|
-    config.vm.provision "shell", inline: <<-SHELL
-      cp /vagrant/insecure_private_key  ~/insecure_private_key
-      chmod 600 ~/insecure_private_key
-    SHELL
-
     ansible_server.vm.provision "ansible_local" do |ansible|
       ansible.verbose  = true
       #ansible.verbose  = "vvvv"
       ansible.limit  = "all"
       #ansible.playbook_command = "sudo ansible-playbook"
       #ansible.config_file = "ansible.cfg"
-      ansible.playbook = "playbook.yml"
+      #ansible.playbook = "playbook.yml"
+      ansible.playbook = "ubuntuPXEserver.yml"
       ansible.inventory_path = "inventory.yml"
     end
   end 

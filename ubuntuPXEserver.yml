@@ -9,6 +9,11 @@
 
 - hosts: masters
   become: yes
+  vars:
+    pxe_server: "192.168.50.230"
+    isofile: "ubuntu-20.04.3-desktop-amd64.iso"
+
+
   tasks:
     - name: install tftpd-hpa, dnsmasq, apache2
       apt:
@@ -60,16 +65,18 @@
           domain=mypxe.local
 
           dhcp-range=192.168.50.240,192.168.50.253,255.255.255.0,1h
-          dhcp-option=3,192.168.50.230
+          dhcp-option=3,{{ pxe_server }}
           dhcp-option=6,8.8.8.8
           server=8.8.4.4
           dhcp-option=28,192.68.50.255
           dhcp-option=42,0.0.0.0
 
-          dhcp-boot=pxelinux.0,pxeserver,192.168.50.230
+          dhcp-boot=pxelinux.0,pxeserver,{{ pxe_server }}
+          dhcp-option=6,8.8.8.8
 
           #pxe-prompt="Press F8 for menu.", 2
-          #pxe-service=x86PC, "Install Ubuntu 16.04 from network server 192.168.50.230", pxelinux
+          #pxe-service=x86PC, "Install Ubuntu 16.04 from network server {{ pxe_server }}"
+          #dhcp-option=6,8.8.8.8, pxelinux
           #enable-tftp
           #tftp-root=/var/lib/tftpboot
       notify:
@@ -93,13 +100,13 @@
         group: vagrant        
         mode: 0644
       with_items:
-        - ubuntu-20.04.3-desktop-amd64.iso 
+        - "{{ isofile }}"
         - pxelinux.0
 
 
     - name: Mount ISO
       mount:
-        src: /var/lib/tftpboot/ubuntu-20.04.3-desktop-amd64.iso
+        src: /var/lib/tftpboot/{{ isofile }}
         path: /mnt/
         fstype: iso9660
         #opts: ro
@@ -129,38 +136,16 @@
           menuentry "Focal Live Installer - automated" --id=autoinstall {
               echo "Loading Kernel..."
               # make sure to escape the ';' or surround argument in quotes
-              linux /vmlinuz ip=dhcp url=http://{{ pxe_default_server }}/tftp/{{ isofile }} autoinstall ds="nocloud-net;s=http://{{ pxe_default_server }}/tftp/" root=/dev/ram0 cloud-config-url=/dev/null
+              linux /vmlinuz ip=dhcp url=http://{{ pxe_server }}/tftp/{{ isofile }} autoinstall ds="nocloud-net;s=http://{{ pxe_server }}/tftp/" root=/dev/ram0 cloud-config-url=/dev/null
               echo "Loading Ram Disk..."
               initrd /initrd
           }
           menuentry "Focal Live Installer" --id=install {
               echo "Loading Kernel..."
-              linux /vmlinuz ip=dhcp url=http://{{ pxe_default_server }}/tftp/{{ isofile }} root=/dev/ram0 cloud-config-url=/dev/null
+              linux /vmlinuz ip=dhcp url=http://{{ pxe_server }}/tftp/{{ isofile }} root=/dev/ram0 cloud-config-url=/dev/null
               echo "Loading Ram Disk..."
               initrd /initrd
           }
-      vars:
-        pxe_default_server: "192.168.50.230"
-        isofile: "ubuntu-20.04.3-desktop-amd64.iso"
-
-    # - name: copy netboot file
-    #   become: true 
-    #   copy:
-    #     src: /mnt/install/netboot/*
-    #     dest: /srv/tftp
-    #     owner: vagrant
-    #     group: vagrant        
-    #     mode: 0644
-
-  #   - name: copy ISO files to apache2
-  #     become: true 
-  #     copy:
-  #       src: /mnt/*
-  #       dest: /var/www/html/
-  #       owner: vagrant
-  #       group: vagrant        
-  #       mode: 0644
-
 
   handlers:
   - name: restart apache2
