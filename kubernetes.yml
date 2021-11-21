@@ -150,31 +150,36 @@
   tasks:
     - name: Create Cluster shell
       shell: |
-        sudo kubeadm init --apiserver-advertise-address=192.168.50.230 --pod-network-cidr=192.168.0.0/16
+        sudo kubeadm init --apiserver-advertise-address=192.168.50.230 --pod-network-cidr=10.244.0.0/16
         sudo mkdir -p /home/vagrant/.kube
         sudo cp -i /etc/kubernetes/admin.conf /home/vagrant/.kube/config
         sudo chown $(id -u vagrant):$(id -g vagrant) /home/vagrant/.kube/config
 
-        kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+        #kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+        #kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
+        #kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.4.0/aio/deploy/recommended.yaml
       register: command_output
 
     - debug: var=command_output.stdout
 
+    #kube-admin
+    #eyJhbGciOiJSUzI1NiIsImtpZCI6ImNVS1R4SmVITGdqWngxX3hDWDRGZHhMYUFKM0Rzb0Z0RDlLTXJLdWViX0UifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJrdWJlLWFkbWluLXRva2VuLW1mNW42Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZXJ2aWNlLWFjY291bnQubmFtZSI6Imt1YmUtYWRtaW4iLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC51aWQiOiI1NDk1OTJjZC02YTk1LTQ5Y2ItYmFhMC05NmNhZmRlYmM5YjEiLCJzdWIiOiJzeXN0ZW06c2VydmljZWFjY291bnQ6a3ViZS1zeXN0ZW06a3ViZS1hZG1pbiJ9.lKkYt_TLVwo3XaG6a_eIqZ2OuAk1-eHrISjF5AmYWfDo9EuMuc3E087DFjjWQb1HD5QomaPAhIHlMc6gq_MtJbpyDuxEDIb79HNxs2NKqwqrc3eMbDOr4v1yaGBeMTSf5KkjwUUxgmPQycUgUODyr7AfU9ytHsp0yox9aG66_M6G429hHJVlgOttiPpnKQZEY7HEFPHiYocTvjtXDVcmPGpNXOb2ID-4leKEZU5jOzss0WWNLbJCZSpsy3pINi37SN1rhyhgmdZXWv-65W9lTO6ZdX-A-gI9WVZG1S8B3hSY8cSXVAZLjk6JMgZJPN9oMPtz6lSu8eqWTDpCADDm2g
+
 - name: join nodes
   hosts:
     - nodes
-  takks:
+  tasks:
     - name: join nodes shell
       shell: |
-        kubeadm join --token <token> <control-plane-host>:<control-plane-port> --discovery-token-ca-cert-hash sha256:<hash>
+        sudo kubeadm join --token {{token}} {{controlplanehost}}:{{controlplaneport}} --discovery-token-ca-cert-hash sha256:{{hash}}
       vars:
-        token:
+        token: hs9wgu.nv5rs32428xwsb5n
           # kubeadm token list
           # kubeadm token create
           # openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt | openssl rsa -pubin -outform der 2>/dev/null | openssl dgst -sha256 -hex | sed 's/^.* //'
-        hash:
-        control-plane-host: 192.168.50.230
-        control-plane-port: 6443
+        hash: f4f8ce203f4ea5293dd5df49b98b183b8bcea58a86e7c11fa5f0520aea741109
+        controlplanehost: 192.168.50.230
+        controlplaneport: 6443
 
 
 

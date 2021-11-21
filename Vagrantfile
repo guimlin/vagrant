@@ -69,7 +69,7 @@ Vagrant.configure("2") do |config|
     ansible_server.vm.provision "ansible_local" do |ansible|
       ansible.verbose  = true
       #ansible.verbose  = "vvvv"
-      ansible.limit  = "all"
+      ansible.limit  = "nodes"
       #ansible.playbook_command = "sudo ansible-playbook"
       #ansible.config_file = "ansible.cfg"
       #ansible.playbook = "playbook.yml"
